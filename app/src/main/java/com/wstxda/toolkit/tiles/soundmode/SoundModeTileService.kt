@@ -34,6 +34,7 @@ class SoundModeTileService : BaseTileService() {
     override fun updateTile() {
         val hasPermission = soundModeManager.hasPermission()
         val mode = soundModeManager.currentMode.value
+
         setTileState(
             state = if (hasPermission) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE,
             label = soundModeLabelProvider.getLabel(mode, hasPermission),

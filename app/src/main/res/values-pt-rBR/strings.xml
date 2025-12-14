@@ -144,4 +144,8 @@
     <!--media output tile-->
 
     <string name="media_output_tile">Saída de mídia</string>
+
+    <!--auto brightness tile-->
+
+    <string name="auto_brightness_tile">Brilho automático</string>
 </resources>

@@ -100,6 +100,22 @@
                 android:resource="@xml/accessibility_service_config" />
         </service>
 
+        <!--auto brightness quick settings tile service-->
+
+        <service
+            android:name=".tiles.brightness.AutoBrightnessTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_auto_brightness_off"
+            android:label="@string/auto_brightness_tile"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.quicksettings.TOGGLEABLE_TILE"
+                android:value="true" />
+        </service>
+
         <!--caffeine quick settings tile service-->
 
         <service

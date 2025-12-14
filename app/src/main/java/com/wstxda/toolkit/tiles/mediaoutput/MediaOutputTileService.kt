@@ -21,6 +21,7 @@ class MediaOutputTileService : BaseTileService() {
     }
 
     override fun updateTile() {
+
         setTileState(
             state = Tile.STATE_INACTIVE,
             label = mediaOutputLabelProvider.getLabel(),

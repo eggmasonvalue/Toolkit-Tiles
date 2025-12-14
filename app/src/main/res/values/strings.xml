@@ -158,4 +158,8 @@
     <!--media output tile-->
 
     <string name="media_output_tile">Media output</string>
+
+    <!--auto brightness tile-->
+
+    <string name="auto_brightness_tile">Auto brightness</string>
 </resources>
