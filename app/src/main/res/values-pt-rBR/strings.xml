@@ -46,6 +46,7 @@
     <string name="tile_on">Ligado</string>
     <string name="tile_off">Desligado</string>
     <string name="tile_open">Toque para abrir</string>
+    <string name="tile_start">Toque para iniciar</string>
     <string name="tile_setup">Toque para configurar</string>
     <string name="tile_switch">Toque para alternar</string>
     <string name="tile_unavailable">Indisponível</string>
@@ -148,4 +149,13 @@
     <!--auto brightness tile-->
 
     <string name="auto_brightness_tile">Brilho automático</string>
+
+    <!-- breathing tile -->
+
+    <string name="breathing_tile">Respirar</string>
+    <!-- tile label -->
+    <string name="breathing_tile_inhale">Inspire…</string>
+    <string name="breathing_tile_exhale">Expire…</string>
+    <string name="breathing_tile_pause">Pausa</string>
+    <string name="breathing_tile_relax">Relaxe</string>
 </resources>
