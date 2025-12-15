@@ -41,7 +41,7 @@ class DiceRollManager(context: Context) {
             }
 
             _currentRoll.value = finalRoll
-            haptics.tick()
+            haptics.click()
             _isRolling.value = false
         }
     }
