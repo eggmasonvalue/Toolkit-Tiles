@@ -6,54 +6,60 @@ import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
 
 class AutoBrightnessManager(context: Context) {
 
     private val appContext = context.applicationContext
-    private val managerScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val _isEnabled = MutableStateFlow(false)
+    private val contentResolver = appContext.contentResolver
+    private val _isEnabled = MutableStateFlow(getCurrentSystemMode())
     val isEnabled = _isEnabled.asStateFlow()
+
     private var isListening = false
+    private val brightnessUri = Settings.System.getUriFor(Settings.System.SCREEN_BRIGHTNESS_MODE)
 
     private val settingsObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
-        override fun onChange(selfChange: Boolean) {
-            onChange(selfChange, null)
-        }
-
         override fun onChange(selfChange: Boolean, uri: Uri?) {
-            fetchCurrentState()
+            if (uri == null || uri == brightnessUri) {
+                syncStateWithSystem()
+            }
         }
     }
 
-    fun startListening() {
-        if (!isListening) {
-            fetchCurrentState()
-            appContext.contentResolver.registerContentObserver(
-                Settings.System.getUriFor(Settings.System.SCREEN_BRIGHTNESS_MODE),
-                true,
-                settingsObserver
+    private fun getCurrentSystemMode(): Boolean {
+        return try {
+            val mode = Settings.System.getInt(
+                contentResolver, Settings.System.SCREEN_BRIGHTNESS_MODE
             )
-            isListening = true
+            mode == Settings.System.SCREEN_BRIGHTNESS_MODE_AUTOMATIC
+        } catch (_: Exception) {
+            false
         }
     }
 
-    fun stopListening() {
-        if (isListening) {
-            appContext.contentResolver.unregisterContentObserver(settingsObserver)
-            isListening = false
+    private fun syncStateWithSystem() {
+        val systemState = getCurrentSystemMode()
+        if (_isEnabled.value != systemState) {
+            _isEnabled.value = systemState
         }
+    }
+
+    fun start() {
+        if (isListening) return
+        syncStateWithSystem()
+        contentResolver.registerContentObserver(brightnessUri, false, settingsObserver)
+        isListening = true
+    }
+
+    fun stop() {
+        if (!isListening) return
+        contentResolver.unregisterContentObserver(settingsObserver)
+        isListening = false
     }
 
     fun cleanup() {
-        stopListening()
-        managerScope.cancel()
+        stop()
     }
 
     fun isPermissionGranted(): Boolean {
@@ -61,29 +67,12 @@ class AutoBrightnessManager(context: Context) {
     }
 
     fun toggle() {
-        managerScope.launch {
-            if (!isPermissionGranted()) return@launch
+        if (!isPermissionGranted()) return
+        val newState = !_isEnabled.value
+        val success = setSystemMode(newState)
 
-            val current = isEnabled.value
-            val newState = !current
-            val success = setSystemMode(newState)
-
-            if (success) {
-                _isEnabled.value = newState
-            }
-        }
-    }
-
-    private fun fetchCurrentState() {
-        try {
-            val mode = Settings.System.getInt(
-                appContext.contentResolver, Settings.System.SCREEN_BRIGHTNESS_MODE
-            )
-            val isAuto = mode == Settings.System.SCREEN_BRIGHTNESS_MODE_AUTOMATIC
-
-            _isEnabled.value = isAuto
-        } catch (_: Exception) {
-            _isEnabled.value = false
+        if (success) {
+            _isEnabled.value = newState
         }
     }
 
@@ -95,8 +84,9 @@ class AutoBrightnessManager(context: Context) {
                 Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL
             }
             Settings.System.putInt(
-                appContext.contentResolver, Settings.System.SCREEN_BRIGHTNESS_MODE, mode
+                contentResolver, Settings.System.SCREEN_BRIGHTNESS_MODE, mode
             )
+            true
         } catch (_: Exception) {
             false
         }

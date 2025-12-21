@@ -9,18 +9,19 @@ import com.wstxda.toolkit.ui.label.AutoBrightnessLabelProvider
 import kotlinx.coroutines.flow.Flow
 
 class AutoBrightnessTileService : BaseTileService() {
+
     private val brightnessManager by lazy { AutoBrightnessManager(applicationContext) }
     private val brightnessLabelProvider by lazy { AutoBrightnessLabelProvider(applicationContext) }
     private val brightnessIconProvider by lazy { AutoBrightnessIconProvider(applicationContext) }
 
     override fun onStartListening() {
         super.onStartListening()
-        brightnessManager.startListening()
+        brightnessManager.start()
     }
 
     override fun onStopListening() {
         super.onStopListening()
-        brightnessManager.stopListening()
+        brightnessManager.stop()
     }
 
     override fun onDestroy() {
