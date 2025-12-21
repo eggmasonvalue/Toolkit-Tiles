@@ -31,12 +31,19 @@ class BreathingIconProvider(private val context: Context) {
 
         canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
 
-        val currentRadius = (maxRadius * 0.2f) + (maxRadius * 0.8f * progress)
-        val minAlpha = 75
-        val dynamicAlpha = (minAlpha + ((255 - minAlpha) * progress)).toInt()
+        val currentRadius: Float
+        val currentAlpha: Int
 
-        paint.alpha = dynamicAlpha
+        if (phase == BreathingPhase.PREPARING) {
+            currentRadius = maxRadius
+            currentAlpha = 255
+        } else {
+            currentRadius = (maxRadius * 0.2f) + (maxRadius * 0.8f * progress)
+            val minAlpha = 75
+            currentAlpha = (minAlpha + ((255 - minAlpha) * progress)).toInt()
+        }
 
+        paint.alpha = currentAlpha
         canvas.drawCircle(center, center, currentRadius, paint)
 
         return Icon.createWithBitmap(iconBitmap)

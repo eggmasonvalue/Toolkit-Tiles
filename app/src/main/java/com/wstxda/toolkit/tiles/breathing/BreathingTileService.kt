@@ -14,6 +14,11 @@ class BreathingTileService : BaseTileService() {
     private val breathingLabelProvider by lazy { BreathingLabelProvider(applicationContext) }
     private val breathingIconProvider by lazy { BreathingIconProvider(applicationContext) }
 
+    override fun onStopListening() {
+        super.onStopListening()
+        breathingManager.stop()
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         breathingManager.cleanup()
@@ -29,11 +34,12 @@ class BreathingTileService : BaseTileService() {
 
     override fun updateTile() {
         val state = breathingManager.breathingState.value
+        val isIdle = state.phase == BreathingPhase.IDLE
 
         setTileState(
-            state = if (state.phase == BreathingPhase.IDLE) Tile.STATE_INACTIVE else Tile.STATE_ACTIVE,
+            state = if (isIdle) Tile.STATE_INACTIVE else Tile.STATE_ACTIVE,
             label = breathingLabelProvider.getLabel(state.phase),
-            subtitle = breathingLabelProvider.getSubtitle(state.phase, state.secondsRemaining),
+            subtitle = breathingLabelProvider.getSubtitle(state.phase),
             icon = breathingIconProvider.getIcon(state.phase, state.progress)
         )
     }

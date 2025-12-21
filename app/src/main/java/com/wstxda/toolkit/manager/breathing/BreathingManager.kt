@@ -12,11 +12,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlin.coroutines.coroutineContext
 import kotlin.math.ceil
 
 class BreathingManager(context: Context) {
 
     companion object {
+        private const val DURATION_PREPARING = 1000L
         private const val DURATION_INHALE = 4000L
         private const val DURATION_HOLD_FULL = 2000L
         private const val DURATION_EXHALE = 4000L
@@ -38,6 +40,7 @@ class BreathingManager(context: Context) {
     private fun start() {
         animationJob?.cancel()
         animationJob = managerScope.launch {
+            runPhase(BreathingPhase.PREPARING, DURATION_PREPARING, 1f, 1f)
             while (isActive) {
                 runCycle()
             }
@@ -46,11 +49,8 @@ class BreathingManager(context: Context) {
 
     private suspend fun runCycle() {
         runPhase(BreathingPhase.INHALE, DURATION_INHALE, 0f, 1f, useHaptics = true)
-
         runPhase(BreathingPhase.HOLD_FULL, DURATION_HOLD_FULL, 1f, 1f)
-
         runPhase(BreathingPhase.EXHALE, DURATION_EXHALE, 1f, 0f)
-
         runPhase(BreathingPhase.HOLD_EMPTY, DURATION_HOLD_EMPTY, 0f, 0f)
     }
 
@@ -65,7 +65,7 @@ class BreathingManager(context: Context) {
         var elapsedTime = 0L
         var nextHapticTrigger = 0L
 
-        while (elapsedTime < duration && managerScope.isActive) {
+        while (elapsedTime < duration && coroutineContext.isActive) {
             elapsedTime = System.currentTimeMillis() - startTime
 
             if (useHaptics && elapsedTime >= nextHapticTrigger) {
@@ -75,13 +75,11 @@ class BreathingManager(context: Context) {
 
             val fraction = (elapsedTime.toFloat() / duration).coerceIn(0f, 1f)
             val currentProgress = startVal + (endVal - startVal) * fraction
-
             val secondsLeft = ceil((duration - elapsedTime) / 1000.0).toInt().coerceAtLeast(1)
 
             _breathingState.value = BreathingData(phase, currentProgress, secondsLeft)
             delay(FRAME_RATE_MS)
         }
-        _breathingState.value = BreathingData(phase, endVal, 0)
     }
 
     fun stop() {
