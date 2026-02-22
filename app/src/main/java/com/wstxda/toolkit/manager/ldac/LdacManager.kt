@@ -132,11 +132,7 @@ class LdacManager(context: Context) {
         override fun onReceive(context: Context, intent: Intent) {
             when (intent.action) {
                 BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED -> {
-                    val state = intent.getIntExtra(
-                        BluetoothProfile.EXTRA_STATE,
-                        BluetoothProfile.STATE_DISCONNECTED
-                    )
-                    _isConnected.value = state == BluetoothProfile.STATE_CONNECTED
+                    refreshConnectionState()
                 }
                 BluetoothAdapter.ACTION_STATE_CHANGED -> {
                     if (intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.STATE_OFF)
@@ -192,6 +188,16 @@ class LdacManager(context: Context) {
         runCatching { appContext.contentResolver.unregisterContentObserver(settingsObserver) }
     }
 
+    fun release() {
+        stopMonitoring()
+        if (proxyConnected) {
+            btAdapter?.closeProfileProxy(BluetoothProfile.A2DP, a2dpProxy)
+            a2dpProxy = null
+            proxyConnected = false
+        }
+        verifyJob?.cancel()
+    }
+
     // endregion
 
     // region State reads
@@ -240,14 +246,22 @@ class LdacManager(context: Context) {
     fun hasCdmAssociation(): Boolean {
         if (Build.VERSION.SDK_INT < CDM_REQUIRED_API) return true
 
-        val address = getConnectedDeviceAddress() ?: return false
+        val proxy = a2dpProxy ?: return false
+        val devices = runCatching { proxy.connectedDevices }.getOrDefault(emptyList())
+        if (devices.isEmpty()) return false
+
         return runCatching {
             val cdm = appContext.getSystemService(CompanionDeviceManager::class.java)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                cdm.myAssociations.any { it.deviceMacAddress?.toString().equals(address, true) }
+            val associations = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                cdm.myAssociations.mapNotNull { it.deviceMacAddress?.toString() }
             } else {
                 @Suppress("DEPRECATION")
-                cdm.associations.any { it.equals(address, true) }
+                cdm.associations
+            }
+
+            // Check if ANY connected device has an association
+            devices.any { device ->
+                associations.any { assocAddress -> assocAddress.equals(device.address, true) }
             }
         }.getOrDefault(false)
     }
@@ -298,19 +312,23 @@ class LdacManager(context: Context) {
 
     private fun applyToBluetoothStack(state: LdacState) {
         val proxy = a2dpProxy ?: return
-        val device = runCatching { proxy.connectedDevices.firstOrNull() }.getOrNull() ?: return
+        val devices = runCatching { proxy.connectedDevices }.getOrDefault(emptyList())
+        if (devices.isEmpty()) return
+
         val getStatus = getCodecStatusMethod ?: return
         val setPreference = setCodecMethod ?: return
 
-        try {
-            val status = getStatus.invoke(proxy, device) as? BluetoothCodecStatus ?: return
-            val current = status.codecConfig ?: return
-            val config = buildCodecConfig(current, state)
-            setPreference.invoke(proxy, device, config)
-        } catch (e: java.lang.reflect.InvocationTargetException) {
-            Log.w(TAG, "Codec push failed: ${e.cause?.message}")
-        } catch (e: Exception) {
-            Log.w(TAG, "Codec push failed: ${e.message}")
+        for (device in devices) {
+            try {
+                val status = getStatus.invoke(proxy, device) as? BluetoothCodecStatus ?: continue
+                val current = status.codecConfig ?: continue
+                val config = buildCodecConfig(current, state)
+                setPreference.invoke(proxy, device, config)
+            } catch (e: java.lang.reflect.InvocationTargetException) {
+                Log.w(TAG, "Codec push failed for ${device.address}: ${e.cause?.message}")
+            } catch (e: Exception) {
+                Log.w(TAG, "Codec push failed for ${device.address}: ${e.message}")
+            }
         }
     }
 

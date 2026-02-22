@@ -31,6 +31,11 @@ class LdacTileService : BaseTileService() {
         super.onStopListening()
     }
 
+    override fun onDestroy() {
+        ldacModule.release()
+        super.onDestroy()
+    }
+
     override fun onClick() {
         if (!ldacModule.hasSecureSettingsPermission()) {
             startActivityAndCollapse(SecureSettingsPermissionActivity::class.java)
